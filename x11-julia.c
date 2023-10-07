@@ -18,15 +18,16 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.   If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  * https://en.wikipedia.org/wiki/Plotting_algorithms_for_the_Mandelbrot_set
  * https://stackoverflow.com/questions/9065669/
  * https://stackoverflow.com/questions/8959610
  *
  * 16 Sep 23   0.1      - Initial version - MT
  * 30 Sep 23   0.2      - Added ability to parse command line options - MT
- *                      - Can display a julia or mandlebrot set - MT
- * 
+ * 07 Oct 23            - Changed the way the colour is determined allowing
+ *                        the number of iterations to be more then 255 - MT
+ *
  * To Do                - Pass coefficents from the command line?
  *
  */
@@ -145,7 +146,7 @@ int hsv_to_rgb(unsigned char h, unsigned char s, unsigned char v)
    if (s == v) s = v +1;
    /**h = s - (h - v); /* Invert colours */
    i = ((int)(h / 42.5) + 1) % 6;
-   m = (h - (i * 42.5)) * 6; 
+   m = (h - (i * 42.5)) * 6;
 
    p = (v * (255 - s)) >> 8;
    q = (v * (255 - ((s * m) >> 8))) >> 8;
@@ -189,6 +190,7 @@ int v_draw_julia_set(float cr, float ci)
    float r = 2.0;                         /* Radius         */
    float x, y;
 
+   int i_colour;
    int i;
 
    /* Get window geometry - not everything will always be the same as the
@@ -202,17 +204,17 @@ int v_draw_julia_set(float cr, float ci)
          &i_window_height,
          &i_window_border,
          &i_colour_depth) == False)
-	{
+   {
       return (False);
    }
-   
+
    f_xdelta = (f_xmin - f_xmax) / i_window_width;
    f_ydelta = (f_ymin - f_ymax) / i_window_height;
    for (y = 0; y < i_window_height; y++)
    {
       for (x = 0; x < i_window_width; x++)
       {
-         zr = f_xmin - (x * f_xdelta); 
+         zr = f_xmin - (x * f_xdelta);
          zi = f_ymin - (y * f_ydelta);
          i = 0;
          while ((((zr*zr) + (zi*zi)) < r*r) && (i < i_maxiteration))
@@ -222,10 +224,11 @@ int v_draw_julia_set(float cr, float ci)
             zr = temp + cr;
             i++;
          }
+         i_colour = hsv_to_rgb(255 * ((float)i / i_maxiteration) , 255, 128);
          if (i == i_maxiteration)
-            XSetForeground(h_display, DefaultGC(h_display, i_screen), hsv_to_rgb(i, 255, 0));
+            XSetForeground(h_display, DefaultGC(h_display, i_screen), BlackPixel(h_display, i_screen));
          else
-            XSetForeground(h_display, DefaultGC(h_display, i_screen), hsv_to_rgb(i, 255, 128));
+            XSetForeground(h_display, DefaultGC(h_display, i_screen), i_colour);
          XDrawPoint(h_display, x_application_window, DefaultGC(h_display, i_screen), x, y);
          XFlush(h_display);
       }
@@ -238,7 +241,7 @@ int main(int argc, char *argv[])
    int i_count, i_index;
    int b_fullscreen = False;
    char b_abort = False; /* Stop processing command line */
-   
+
    for (i_count = 1; i_count < argc && (b_abort != True); i_count++)
    {
       if (argv[i_count][0] == '-')
@@ -250,8 +253,8 @@ int main(int argc, char *argv[])
             {
                case 'f': /* Fullscreen */
                    b_fullscreen = True; break;
-               case '?': /* Display help */      
-                  v_about();               
+               case '?': /* Display help */
+                  v_about();
                case '-': /* '--' terminates command line processing */
                   i_index = strlen(argv[i_count]);
                   if (i_index == 2)
@@ -291,7 +294,7 @@ int main(int argc, char *argv[])
          }
       }
    }
-   
+
    h_display = XOpenDisplay(s_display_name); /*   Open a display. */
 
    if (h_display) /*   If successful create and display a new window. */
@@ -310,8 +313,8 @@ int main(int argc, char *argv[])
       if (b_fullscreen)
       {
          /*
-          *  Display julia set in full screen maode by default 
-          * 
+          *  Display julia set in full screen maode by default
+          *
           */
          Atom wm_state = XInternAtom (h_display, "_NET_WM_STATE", True );
          Atom wm_fullscreen = XInternAtom (h_display, "_NET_WM_STATE_FULLSCREEN", True );
@@ -344,7 +347,7 @@ int main(int argc, char *argv[])
             case XK_F:
                if (b_fullscreen)
                   v_fullscreen(0);
-               else 
+               else
                   v_fullscreen(1);
                b_fullscreen = !b_fullscreen;
             }

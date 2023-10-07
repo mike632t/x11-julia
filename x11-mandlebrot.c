@@ -25,7 +25,8 @@
  *
  * 16 Sep 23   0.1      - Initial version - MT
  * 30 Sep 23   0.2      - Added ability to parse command line options - MT
- *                      - Can display a julia or mandlebrot set - MT
+ * 07 Oct 23            - Changed the way the colour is determined allowing
+ *                        the number of iterations to be more then 255 - MT
  * 
  * To Do                - Pass cordinates from the command line?
  *
@@ -180,7 +181,7 @@ int v_draw_mandlebrot_set()
    const float f_xmax = 0.75;             /* Right edge     */
    const float f_ymin = -1.25;            /* Top edge       */
    const float f_ymax = 1.25;             /* Bottom edge    */
-   const int i_maxiteration = 224;        /* Iterations     */
+   const int i_maxiteration = 224;         /* Iterations     */
 
    float f_xdelta = 0.00375;              /* X step size    */
    float f_ydelta = 0.0033;               /* Y step size    */
@@ -190,6 +191,7 @@ int v_draw_mandlebrot_set()
    float r = 2.0;                         /* Radius         */
    float x, y;
 
+   int i_colour;
    int i;
 
    /* Get window geometry - not everything will always be the same as the
@@ -226,10 +228,11 @@ int v_draw_mandlebrot_set()
             zr = temp + cr;
             i++;
          }
+         i_colour = hsv_to_rgb(255 * ((float)i / i_maxiteration) , 255, 128);
          if (i == i_maxiteration)
-            XSetForeground(h_display, DefaultGC(h_display, i_screen), hsv_to_rgb(i, 255, 0));
+            XSetForeground(h_display, DefaultGC(h_display, i_screen), BlackPixel(h_display, i_screen));
          else
-            XSetForeground(h_display, DefaultGC(h_display, i_screen), hsv_to_rgb(i, 255, 128));
+            XSetForeground(h_display, DefaultGC(h_display, i_screen), i_colour);
          XDrawPoint(h_display, x_application_window, DefaultGC(h_display, i_screen), x, y);
          XFlush(h_display);
       }
