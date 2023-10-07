@@ -24,6 +24,7 @@
  * https://stackoverflow.com/questions/8959610
  *
  * 07 Oct 23   0.1      - Initial version - MT
+ *                      - Increased number of iterations to 64 - MT
  *
  */
 
@@ -134,14 +135,14 @@ int v_draw_mandlebrot_set()
    const float f_xmax = 0.75;             /* Right edge     */
    const float f_ymin = -1.25;            /* Top edge       */
    const float f_ymax = 1.25;             /* Bottom edge    */
-   const int i_maxiteration = 32;         /* Iterations     */
+   const int i_maxiteration = 64;         /* Iterations     */
 
    float f_xdelta = 0.00375;              /* X step size    */
    float f_ydelta = 0.0033;               /* Y step size    */
 
    float cr, ci;
    float zr, zi, temp;
-   float r = 2.0                          /* Radius         */
+   float r = 2.0;                         /* Radius         */
    float x, y;
 
    int i;
