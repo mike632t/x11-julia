@@ -27,6 +27,8 @@
  * 30 Sep 23   0.2      - Added ability to parse command line options - MT
  * 07 Oct 23            - Changed the way the colour is determined allowing
  *                        the number of iterations to be more then 255 - MT
+ *                      - Reduced the number of iterations to giving a more
+ *                        vairied display - MT
  * 
  * To Do                - Pass cordinates from the command line?
  *
@@ -181,7 +183,7 @@ int v_draw_mandlebrot_set()
    const float f_xmax = 0.75;             /* Right edge     */
    const float f_ymin = -1.25;            /* Top edge       */
    const float f_ymax = 1.25;             /* Bottom edge    */
-   const int i_maxiteration = 224;         /* Iterations     */
+   const int i_maxiteration = 64;         /* Iterations     */
 
    float f_xdelta = 0.00375;              /* X step size    */
    float f_ydelta = 0.0033;               /* Y step size    */
