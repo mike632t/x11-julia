@@ -25,6 +25,8 @@
  *
  * 07 Oct 23   0.1      - Initial version - MT
  *                      - Increased number of iterations to 64 - MT
+ *                      - Automatically detect terminal size and now pauses
+ *                        until the users presses <ENTER> when done - MT
  *
  */
 
@@ -36,11 +38,16 @@
 #include <unistd.h>
 #include <math.h>
 
+#include <sys/ioctl.h>
+
 #define  NAME           "gcc-ansi-mandlebrot"
 #define  VERSION        "0.1"
 #define  BUILD          "0001"
 #define  AUTHOR         "MT"
 #define  DATE           "26 Sep 23"
+
+#define  WIDTH          132               /* Fallback terminal size */
+#define  HEIGHT         34
 
 #define  True           0
 #define  False          !True
@@ -51,15 +58,6 @@
 #else
 #define debug(code)
 #endif
-
-#define  WIDTH 132
-#define  HEIGHT 33
-
-int i_window_left, i_window_top;          /* Location of the window's top-left corner - relative to parent window. */
-int i_KeyEventCode;
-
-char *s_display_name = "";                /* Just use the default display. */
-char *s_title = NAME;                     /* Windows title */
 
 void v_version() /* Display version information */
 {
@@ -129,7 +127,7 @@ int hsv_to_rgb(unsigned char h, unsigned char s, unsigned char v)
    }
 }
 
-int v_draw_mandlebrot_set()
+int v_draw_mandlebrot_set(int i_height, int i_width)
 {
    const float f_xmin = -2.25;            /* Left edge      */
    const float f_xmax = 0.75;             /* Right edge     */
@@ -148,12 +146,13 @@ int v_draw_mandlebrot_set()
    int i;
    int i_colour;
 
-   f_xdelta = (f_xmin - f_xmax) / WIDTH;
-   f_ydelta = (f_ymin - f_ymax) / HEIGHT;
+   f_xdelta = (f_xmin - f_xmax) / i_width;
+   f_ydelta = (f_ymin - f_ymax) / i_height;
 
-   for (y = 0; y < HEIGHT; y++)
+   for (y = 0; y < i_height; y++)
    {
-      for (x = 0; x < WIDTH; x++)
+      if (y > 0 ) printf("\n");
+      for (x = 0; x < i_width; x++)
       {
          cr = f_xmin - (x * f_xdelta);
          ci = f_ymin - (y * f_ydelta);
@@ -175,13 +174,16 @@ int v_draw_mandlebrot_set()
             printf("\033[48;2;%03d;%03d;%03dm ", (i_colour >> 16)  & 0xff, (i_colour >> 8)  & 0xff, i_colour & 0xff);
          }
       }
-      printf("\033[0m\n");
+      printf("\033[0m");
    }
    return True;
 }
 
 int main(int argc, char *argv[])
 {
+   int i_width = WIDTH;
+   int i_height = HEIGHT;
+
    int i_count, i_index;
    char b_abort = False; /* Stop processing command line */
 
@@ -232,6 +234,19 @@ int main(int argc, char *argv[])
       }
    }
 
-   v_draw_mandlebrot_set(); /* Exit if unable to draw julia set */
+#ifdef TIOCGSIZE
+   struct ttysize ts;
+   ioctl(STDIN_FILENO, TIOCGSIZE, &ts);
+   i_height = ts.ts_lines;
+   i_width = ts.ts_cols;
+#elif defined(TIOCGWINSZ)
+   struct winsize ts;
+   ioctl(STDIN_FILENO, TIOCGWINSZ, &ts);
+   i_height = ts.ws_row;
+   i_width = ts.ws_col;
+#endif /* TIOCGSIZE */
+
+   v_draw_mandlebrot_set(i_height, i_width);
+   getchar(); 
    exit(0);
 }
