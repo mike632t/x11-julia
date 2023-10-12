@@ -27,6 +27,8 @@
  * 30 Sep 23   0.2      - Added ability to parse command line options - MT
  * 07 Oct 23            - Changed the way the colour is determined allowing
  *                        the number of iterations to be more then 255 - MT
+ * 12 Oct 23            - Fixed overflow issues in hsv2rgb() - MT
+ *                      - Tidied up fullscreen function - MT
  *
  * To Do                - Pass coefficents from the command line?
  *
@@ -36,8 +38,8 @@
 #include <stdlib.h>                       /* exit(), etc. */
 #include <string.h>                       /* strlen(), etc */
 #include <stdarg.h>                       /* va_start(), va_end(), etc */
+#include <stdint.h>
 
-#include <unistd.h>
 #include <math.h>
 
 #include <X11/Xlib.h>                     /* XOpenDisplay(), etc. */
@@ -119,7 +121,7 @@ void v_set_blank_cursor(Display *x_display, Window x_application_window, Cursor 
    XFreePixmap (x_display, x_blank); /* Free up pixmap */
 }
 
-void v_fullscreen(int i_State)
+void v_fullscreen(int i_state)
 {
    XEvent x_event;
    Atom wm_fullscreen;
@@ -128,51 +130,61 @@ void v_fullscreen(int i_State)
    x_event.xclient.window = x_application_window;
    x_event.xclient.message_type = XInternAtom(h_display, "_NET_WM_STATE", False);
    x_event.xclient.format = 32;
-   x_event.xclient.data.l[0] = i_State;
+   x_event.xclient.data.l[0] = i_state;
    wm_fullscreen = XInternAtom(h_display, "_NET_WM_STATE_FULLSCREEN", False);
    x_event.xclient.data.l[1] = wm_fullscreen;
-   x_event.xclient.data.l[2] = wm_fullscreen;
+   x_event.xclient.data.l[2] = 0;
    XSendEvent(h_display, RootWindow(h_display, i_screen), False, ClientMessage, &x_event);
 }
 
-int hsv_to_rgb(unsigned char h, unsigned char s, unsigned char v)
+uint32_t pack(uint8_t a, uint8_t b, uint8_t c)
 {
-   unsigned char i, m, p, q, t;
+   return((((((uint32_t)a) << 8) + b) << 8) + c);
+}
 
-   if(s == 0)
+uint32_t hsv2rgb(uint8_t h, uint8_t s, uint8_t v)
+{
+   uint16_t i, m;
+   uint8_t r, g, b;
+   uint8_t p, q, t;
+   
+   if (s == 0)
    {
-      return ((((v << 8) + v) << 8) + v);
+      r = v;
+      g = v;
+      b = v;
+      return pack(r, g, b);
    }
-   if (s == v) s = v +1;
-   /**h = s - (h - v); /* Invert colours */
-   i = ((int)(h / 42.5) + 1) % 6;
-   m = (h - (i * 42.5)) * 6;
-
-   p = (v * (255 - s)) >> 8;
-   q = (v * (255 - ((s * m) >> 8))) >> 8;
-   t = (v * (255 - ((s * (255 - m)) >> 8))) >> 8;
-
-   switch(i)
+   
+   i = (uint16_t)h / 43;
+   m = ((uint16_t)h - (i * 43)) * 6; 
+   
+   p = ((uint16_t)v * (255 - (uint16_t)s)) >> 8;
+   q = ((uint16_t)v * (255 - (((uint16_t)s * m) >> 8))) >> 8;
+   t = ((uint16_t)v * (255 - (((uint16_t)s * (255 - m)) >> 8))) >> 8;
+   
+   switch (i)
    {
-   case 0:
-      return ((((v << 8) + p) << 8) + q);
-      break;
-   case 1:
-      return ((((v << 8) + t) << 8) + p);
-      break;
-   case 2:
-      return ((((q << 8) + v) << 8) + p);
-      break;
-   case 3:
-      return ((((p << 8) + v) << 8) + t);
-      break;
-   case 4:
-      return ((((p << 8) + q) << 8) + v);
-      break;
-   default:
-      return ((((t << 8) + p) << 8) + v);
-      break;
+      case 0:
+         r = v; g = t; b = p;
+         break;
+      case 1:
+         r = q; g = v; b = p;
+         break;
+      case 2:
+         r = p; g = v; b = t;
+         break;
+      case 3:
+         r = p; g = q; b = v;
+         break;
+      case 4:
+         r = t; g = p; b = v;
+         break;
+      default:
+         r = v; g = p; b = q;
+         break;
    }
+   return pack(r, g, b);
 }
 
 int v_draw_julia_set(float cr, float ci)
@@ -224,7 +236,7 @@ int v_draw_julia_set(float cr, float ci)
             zr = temp + cr;
             i++;
          }
-         i_colour = hsv_to_rgb(255 * ((float)i / i_maxiteration) , 255, 128);
+         i_colour = hsv2rgb(255 * ((float)i / i_maxiteration) , 255, 128);
          if (i == i_maxiteration)
             XSetForeground(h_display, DefaultGC(h_display, i_screen), BlackPixel(h_display, i_screen));
          else
@@ -318,7 +330,7 @@ int main(int argc, char *argv[])
           */
          Atom wm_state = XInternAtom (h_display, "_NET_WM_STATE", True );
          Atom wm_fullscreen = XInternAtom (h_display, "_NET_WM_STATE_FULLSCREEN", True );
-         if (XChangeProperty(h_display, x_application_window, wm_state, XA_ATOM, 32, PropModeReplace, (unsigned char *)&wm_fullscreen, 1) );
+         XChangeProperty(h_display, x_application_window, wm_state, XA_ATOM, 32, PropModeReplace, (unsigned char *)&wm_fullscreen, 1);
       }
 
       XStoreName(h_display, x_application_window, s_title); /* Set the window title */
